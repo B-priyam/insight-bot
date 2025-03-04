@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  clerkid   String   @unique
+  image     String?
+  chats     Chat[]
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id            String    @id @default(uuid())
+  chatId        String    @db.Uuid
+  original_name String
+  url           String
+  fileType      FileType?
+  uploadedAt    DateTime  @default(now())
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  User        User       @relation(fields: [userid], references: [clerkid])
+  userid      String
+  messages    Message[]
+  documents   Document[]
+  namespaceId String?
+  response    String?
+}
+
+model Message {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat      Chat      @relation(fields: [chatId], references: [id])
+  chatId    String    @db.Uuid
+  role      String
+  content   String
+  timeStamp DateTime? @default(now())
+  source    Source[]
+}
+
+model Source {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageNo    String
+  messageId String  @db.Uuid
+  message   Message @relation(fields: [messageId], references: [id])
+}
+
+enum FileType {
+  DOC
+  IMAGE
+  VIDEO
+}
+
+enum SenderType {
+  USER
+  AI
+}
