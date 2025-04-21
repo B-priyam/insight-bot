@@ -221,11 +221,11 @@ export default function ImagesChat() {
       console.log(data);
       setAllData(data);
       setmessages(
-        data?.messages?.map((message: any) => {
+        data?.messages?.map((message) => {
           return {
             content: message.content,
             role: message.role === "system" ? "system" : "user",
-            timestamp: message.timestamp,
+            timestamp: message.timeStamp!,
           };
         })
       );
