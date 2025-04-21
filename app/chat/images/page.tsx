@@ -1,22 +1,23 @@
 "use client";
 
 import { queryPinecone } from "@/app/action/queryPinecone";
+import Alert from "@/components/alert-dialog";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import FileUpload from "@/components/file-upload";
+import { DialogDemo } from "@/components/title-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { getImageResponse } from "@/lib/chatWithImage";
 import { getData } from "@/lib/retriveFromDatabase";
 import { save, saveDocuments, saveMessages } from "@/lib/saveToDatabase";
-import { analyzeImages } from "@/lib/test/imageAnalysis";
 import { cn } from "@/lib/utils";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { motion } from "framer-motion";
 import { Image, Loader2, MessageSquare, PlusIcon, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -42,6 +43,11 @@ export default function ImagesChat() {
   const [processing, setProcessing] = useState(false);
   const [chatId, setchatId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [openAlertDialog, setOpenAlertDialog] = useState(false);
+  const [isTitleModelOpen, setIsTitleModelOpen] = useState(false);
+  const [title, setTitle] = useState(
+    `Untitled-${new Date().toLocaleDateString()}-${new Date().toLocaleTimeString()}`
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -52,10 +58,10 @@ export default function ImagesChat() {
       setSaving(true);
       let data;
       if (allData) {
-        data = await save(allData);
+        data = await save({ ...allData, title, type: "IMAGE" });
       } else {
         const sessionData = JSON.parse(sessionStorage.getItem("imageSession")!);
-        data = await save(sessionData);
+        data = await save({ ...sessionData, title, type: "IMAGE" });
       }
       console.log(data);
       if (data) {
@@ -82,7 +88,7 @@ export default function ImagesChat() {
     }
   };
 
-  const saveSession = async (namespaceId: string) => {
+  const saveSession = async () => {
     try {
       const formData = new FormData();
       images.forEach((file) => formData.append("files", file));
@@ -116,22 +122,12 @@ export default function ImagesChat() {
           const sessionData = {
             files: data,
             messages: messages,
-            namespaceId: namespaceId,
+            namespaceId: namespaceId || allData?.namespaceId,
             update: true,
           };
           sessionStorage.setItem("imageSession", JSON.stringify(sessionData));
-          setshowSaveButton(true);
         }
       }
-      for (let i = 80; i <= 100; i++) {
-        setProgress(i);
-        await new Promise((resolve) => setInterval(resolve, 50));
-      }
-      toast({
-        title: "Processing Complete",
-        description: "All images have been successfully processed .",
-      });
-      setProcessing(false);
     } catch (error) {
       console.error("Error processing images:", error);
       toast({
@@ -151,6 +147,7 @@ export default function ImagesChat() {
           variant: "destructive",
         });
       }
+      saveSession();
       setProcessing(true);
 
       for (let i = 0; i < 50; i++) {
@@ -171,16 +168,36 @@ export default function ImagesChat() {
         body: formData,
       });
 
+      for (let i = 50; i <= 80; i++) {
+        setProgress(i);
+        await new Promise((resolve) => setInterval(resolve, 50));
+      }
+
       const data = await res.json();
-      console.log(data);
 
       if (data.namespaceId) {
-        for (let i = 50; i < 80; i++) {
+        for (let i = 80; i < 100; i++) {
           setProgress(i);
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
         setNamespaceId(data?.namespaceId);
-        saveSession(data.namespaceId);
+        if (!namespaceId && !allData?.namespaceId) {
+          sessionStorage.setItem(
+            "imageSession",
+            JSON.stringify({
+              ...JSON.parse(sessionStorage.getItem("imageSession") || "{}"),
+              namespaceId: data.namespaceId,
+            })
+          );
+        }
+        setProcessing(false);
+        toast({
+          title: "Processing Complete",
+          description: "All images have been successfully processed .",
+        });
+        if (!isSaved) {
+          setshowSaveButton(true);
+        }
       } else {
         setProcessing(false);
         toast({
@@ -201,13 +218,14 @@ export default function ImagesChat() {
   const getImageData = async (chatId: string) => {
     const data = await getData(chatId);
     if (data) {
+      console.log(data);
       setAllData(data);
       setmessages(
-        data?.messages?.map((message) => {
+        data?.messages?.map((message: any) => {
           return {
             content: message.content,
             role: message.role === "system" ? "system" : "user",
-            timestamp: message.timeStamp!,
+            timestamp: message.timestamp,
           };
         })
       );
@@ -278,6 +296,16 @@ export default function ImagesChat() {
     }
   };
 
+  const addNewChat = () => {
+    setAllData(null), setImages([]), setIsSaved(false);
+    setmessages([]);
+    setNamespaceId("");
+    setchatId("");
+    setshowSaveButton(false);
+    sessionStorage.setItem("imageSession", JSON.stringify({ update: true }));
+    // sessionStorage.removeItem("imageSession");
+  };
+
   if (!isMounted) {
     return null;
   }
@@ -307,7 +335,12 @@ export default function ImagesChat() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Button className="bg-emerald-500/10 md:right-10  right-2 top-8">
+                  <Button
+                    onClick={() => {
+                      !isSaved ? setOpenAlertDialog(true) : addNewChat();
+                    }}
+                    className="bg-emerald-500/10 md:right-10  right-2 top-8"
+                  >
                     <PlusIcon />
                     <p className="hidden md:flex">New Chat</p>
                   </Button>
@@ -335,7 +368,7 @@ export default function ImagesChat() {
               </div>
             </div>
             <Button
-              onClick={saveToDb}
+              onClick={() => setIsTitleModelOpen(true)}
               className="bg-slate-800 hover:bg-slate-800/50"
             >
               {saving ? (
@@ -393,7 +426,22 @@ export default function ImagesChat() {
             />
           </div>
         </Card>
-        {/* )} */}
+        <div>
+          <Alert
+            addNewChat={addNewChat}
+            openAlertDialog={openAlertDialog}
+            setOpenAlertDialog={setOpenAlertDialog}
+          />
+        </div>
+        <div>
+          <DialogDemo
+            isTitleModelOpen={isTitleModelOpen}
+            setIsTitleModelOpen={setIsTitleModelOpen}
+            setTitle={setTitle}
+            title={title}
+            action={saveToDb}
+          />
+        </div>
       </div>
     </motion.div>
   );

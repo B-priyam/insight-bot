@@ -115,13 +115,14 @@ export function Sidebar() {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 cursor-pointer" onClick={() => redirect("/")}>
-            <h2 className="text-2xl font-bold gradient-text mb-6">
+            <h2 className="text-2xl font-bold gradient-text mb-6 flex flex-row justify-between items-center">
               AI Assistant
+              <ThemeToggle />
             </h2>
-            <div className="relative">
+            {/* <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search..." className="pl-9 search-input" />
-            </div>
+            </div> */}
           </div>
 
           <ScrollArea className="flex-1 px-4">
@@ -145,13 +146,13 @@ export function Sidebar() {
 
           <div className="p-6 border-t border-border mt-auto">
             <div className="flex items-center justify-between mb-4">
-              <Button variant="ghost" size="icon">
+              {/* <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
-              <ThemeToggle />
+
               <Button variant="ghost" size="icon">
                 <Settings className="h-5 w-5" />
-              </Button>
+              </Button> */}
             </div>
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
@@ -169,7 +170,7 @@ export function Sidebar() {
                 </p>
               </div>
               <SignOutButton redirectUrl="/sign-in">
-                <LogOut onClick={logOut} />
+                <LogOut onClick={logOut} className="cursor-pointer " />
               </SignOutButton>
             </div>
           </div>

@@ -10,7 +10,13 @@ export const getData = async (chatId: string) => {
       id: chatId,
     },
     select: {
-      documents: true,
+      documents: {
+        select: {
+          id: true,
+          original_name: true,
+          url: true,
+        },
+      },
       messages: {
         select: {
           content: true,

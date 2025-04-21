@@ -25,13 +25,11 @@ export async function handleUserSignIn() {
   const clerkid = user.id;
 
   try {
-    // Check if user already exists in the database
     const existingUser = await client.user.findUnique({
       where: { clerkid },
     });
 
     if (!existingUser) {
-      // Create a new user in the database
       await client.user.create({
         data: {
           email,

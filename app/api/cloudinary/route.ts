@@ -24,13 +24,38 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Function to get Cloudinary upload options
+const getUploadOptions = (fileType: string): cloudinary.UploadApiOptions => {
+  console.log("🔴 ", fileType);
+  if (fileType.startsWith("image")) {
+    return {
+      folder: "uploads",
+      quality: "auto:best", // Optimized quality
+      // format: "auto",
+      // fetch_format: "auto",
+      bit_rate: "1000k",
+    };
+  } else if (fileType.startsWith("video")) {
+    return {
+      folder: "uploads",
+      resource_type: "video", // Required for videos
+      quality: "auto:good",
+      format: "mp4",
+      bit_rate: "800k", // Keeps quality while reducing size
+    };
+  } else {
+    return {
+      folder: "uploads",
+    };
+  }
+};
+
 // Handle file uploads
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
 
-    console.log("🔴", files);
     if (!files.length) {
       return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
     }
@@ -42,9 +67,10 @@ export async function POST(req: NextRequest) {
         const tempPath = path.join(uploadDir, file.name);
         await fs.writeFile(tempPath, buffer);
 
-        const result = await cloudinary.v2.uploader.upload(tempPath, {
-          folder: "uploads",
-        });
+        const mimeType = file.type; // Get file type
+        const options = getUploadOptions(mimeType);
+
+        const result = await cloudinary.v2.uploader.upload(tempPath, options);
 
         await fs.unlink(tempPath); // Remove temp file
 
@@ -52,6 +78,7 @@ export async function POST(req: NextRequest) {
           public_id: result.public_id,
           url: result.secure_url,
           original_name: file.name,
+          size: file.size,
         };
       })
     );
@@ -63,7 +90,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// API route to delete images
+// API route to delete files
 export async function DELETE(req: NextRequest) {
   try {
     const { public_id } = await req.json();
@@ -74,7 +101,7 @@ export async function DELETE(req: NextRequest) {
 
     await cloudinary.v2.uploader.destroy(public_id);
 
-    return NextResponse.json({ success: true, message: "Image deleted" });
+    return NextResponse.json({ success: true, message: "File deleted" });
   } catch (error) {
     console.error("Delete error:", error);
     return NextResponse.json({ error: "Delete failed" }, { status: 500 });

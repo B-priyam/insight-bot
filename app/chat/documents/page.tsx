@@ -1,9 +1,10 @@
 "use client";
 
 import { retrieveDocuments } from "@/app/action/queryDocuments";
-import { queryPinecone } from "@/app/action/queryPinecone";
+import Alert from "@/components/alert-dialog";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import FileUpload from "@/components/file-upload";
+import { DialogDemo } from "@/components/title-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -31,7 +32,7 @@ function DocumentsChat() {
   const [files, setFiles] = useState<File[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const { toast } = useToast();
-  const [namespaceId, setNamespaceId] = useState();
+  const [namespaceId, setNamespaceId] = useState<string>();
   const [allData, setAllData] = useState<any>();
   const [progress, setProgress] = useState<number>();
   const [processedFiles, setprocessedFiles] = useState([]);
@@ -41,6 +42,11 @@ function DocumentsChat() {
   const [isMounted, setIsMounted] = useState(false);
   const [chatId, setChatId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [openAlertDialog, setOpenAlertDialog] = useState(false);
+  const [isTitleModelOpen, setIsTitleModelOpen] = useState(false);
+  const [title, setTitle] = useState(
+    `Untitled-${new Date().toLocaleDateString()}-${new Date().toLocaleTimeString()}`
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -51,12 +57,12 @@ function DocumentsChat() {
       setSaving(true);
       let data;
       if (allData) {
-        data = await save(allData);
+        data = await save({ ...allData, title, type: "DOCUMENT" });
       } else {
         const sessionData = JSON.parse(
           sessionStorage.getItem("documentSession")!
         );
-        data = await save(sessionData);
+        data = await save({ ...sessionData, title, type: "DOCUMENT" });
       }
       console.log(data);
       if (data) {
@@ -83,8 +89,9 @@ function DocumentsChat() {
     }
   };
 
-  const saveSession = async (namespaceId: string) => {
+  const saveSession = async () => {
     try {
+      console.log("satrted");
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
@@ -119,25 +126,15 @@ function DocumentsChat() {
           const sessionData = {
             files: data,
             messages: messages,
-            namespaceId: namespaceId,
+            namespaceId: namespaceId || allData?.namespaceId,
             update: true,
           };
           sessionStorage.setItem(
             "documentSession",
             JSON.stringify(sessionData)
           );
-          setshowSaveButton(true);
         }
       }
-      for (let i = 80; i <= 100; i++) {
-        setProgress(i);
-        await new Promise((resolve) => setInterval(resolve, 50));
-      }
-      toast({
-        title: "Processing Complete",
-        description: "All documents have been successfully processed .",
-      });
-      setProcessing(false);
     } catch (error) {
       console.error("Error processing documents:", error);
       toast({
@@ -163,6 +160,7 @@ function DocumentsChat() {
         setProgress(i);
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
+      saveSession();
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
       if (allData?.namespaceId || namespaceId) {
@@ -171,24 +169,46 @@ function DocumentsChat() {
           allData ? allData?.namespaceId : namespaceId
         );
       }
+
       const res = await fetch("/api/document-upload", {
         method: "POST",
         body: formData,
       });
       for (let i = 40; i < 60; i++) {
         setProgress(i);
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
       const data = await res.json();
       console.log(data);
 
       if (data.namespaceId) {
-        for (let i = 60; i < 90; i++) {
+        for (let i = 60; i < 80; i++) {
           setProgress(i);
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 50));
         }
         setNamespaceId(data?.namespaceId);
-        saveSession(data.namespaceId);
+        setNamespaceId(data?.namespaceId);
+        if (!namespaceId && !allData?.namespaceId) {
+          sessionStorage.setItem(
+            "documentSession",
+            JSON.stringify({
+              ...JSON.parse(sessionStorage.getItem("documentSession") || "{}"),
+              namespaceId: data.namespaceId,
+            })
+          );
+        }
+        for (let i = 80; i <= 100; i++) {
+          setProgress(i);
+          await new Promise((resolve) => setInterval(resolve, 50));
+        }
+        toast({
+          title: "Processing Complete",
+          description: "All documents have been successfully processed .",
+        });
+        setProcessing(false);
+        if (!isSaved) {
+          setshowSaveButton(true);
+        }
       } else {
         setProcessing(false);
         toast({
@@ -211,7 +231,15 @@ function DocumentsChat() {
     const data = await getData(chatId);
     if (data) {
       setAllData(data);
-      setMessages(data?.messages);
+      setMessages(
+        data?.messages?.map((message) => {
+          return {
+            content: message.content,
+            role: message.role === "system" ? "system" : "user",
+            timestamp: message?.timeStamp!,
+          };
+        })
+      );
     }
   };
 
@@ -235,6 +263,16 @@ function DocumentsChat() {
       }
     }
   }, []);
+
+  const addNewChat = () => {
+    setAllData(null), setFiles([]), setIsSaved(false);
+    setMessages([]);
+    setNamespaceId("");
+    setChatId("");
+    setshowSaveButton(false);
+    sessionStorage.setItem("documentSession", JSON.stringify({ update: true }));
+    // sessionStorage.removeItem("imageSession");
+  };
 
   const getResponse = async () => {
     const data = await retrieveDocuments({
@@ -306,7 +344,12 @@ function DocumentsChat() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Button className="bg-blue-500/10 md:right-10  right-2 top-8">
+                  <Button
+                    onClick={() => {
+                      !isSaved ? setOpenAlertDialog(true) : addNewChat();
+                    }}
+                    className="bg-blue-500/10 md:right-10  right-2 top-8"
+                  >
                     <PlusIcon />
                     <p className="hidden md:flex">New Chat</p>
                   </Button>
@@ -334,7 +377,7 @@ function DocumentsChat() {
               </div>
             </div>
             <Button
-              onClick={saveToDb}
+              onClick={() => setIsTitleModelOpen(true)}
               className="bg-slate-800 hover:bg-slate-800/50"
             >
               {saving ? (
@@ -395,6 +438,22 @@ function DocumentsChat() {
             />
           </div>
         </Card>
+        <div>
+          <Alert
+            addNewChat={addNewChat}
+            openAlertDialog={openAlertDialog}
+            setOpenAlertDialog={setOpenAlertDialog}
+          />
+        </div>
+        <div>
+          <DialogDemo
+            isTitleModelOpen={isTitleModelOpen}
+            setIsTitleModelOpen={setIsTitleModelOpen}
+            setTitle={setTitle}
+            title={title}
+            action={saveToDb}
+          />
+        </div>
       </div>
     </motion.div>
   );

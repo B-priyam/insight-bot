@@ -13,7 +13,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -27,9 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
+import { getAllChats } from "@/app/action/chats";
 
-// Mock data for chat history
 const mockChatHistory = [
   {
     id: "1",
@@ -57,15 +57,15 @@ const mockChatHistory = [
     preview:
       "The design looks great, but I suggest adjusting the color scheme...",
   },
-  //   {
-  //     id: "4",
-  //     type: "videos",
-  //     title: "Marketing Video Feedback",
-  //     messages: 6,
-  //     date: "2025-04-07T09:20:00",
-  //     preview:
-  //       "The video pacing is good, but the intro could be more engaging...",
-  //   },
+  {
+    id: "4",
+    type: "videos",
+    title: "Marketing Video Feedback",
+    messages: 6,
+    date: "2025-04-07T09:20:00",
+    preview:
+      "The video pacing is good, but the intro could be more engaging...",
+  },
   {
     id: "5",
     type: "ai",
@@ -86,25 +86,48 @@ const mockChatHistory = [
 ];
 
 export default function ChatHistory() {
-  const [chatHistory, setChatHistory] = useState(mockChatHistory);
+  const [chatHistory, setChatHistory] = useState<any>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const filteredHistory =
     activeTab === "all"
       ? chatHistory
-      : chatHistory.filter((chat) => chat.type === activeTab);
+      : chatHistory.filter((chat: any) => chat.type === activeTab);
 
   const handleDeleteChat = (id: string) => {
     setChatToDelete(id);
     setDeleteDialogOpen(true);
   };
 
+  const getData = async () => {
+    const data = await getAllChats();
+    setChatHistory(data);
+  };
+
+  useEffect(() => {
+    getData();
+  }, []);
+
+  const redirectTOChat = (type: string, chatId: string) => {
+    console.log(type);
+    router.push(`/chat/${type.toLowerCase()}${type !== "AI" ? "s" : ""}`);
+    sessionStorage.setItem(
+      `${type.toLowerCase()}Session`,
+      JSON.stringify({
+        chatId,
+      })
+    );
+  };
+
   const confirmDelete = () => {
     if (chatToDelete) {
-      setChatHistory(chatHistory.filter((chat) => chat.id !== chatToDelete));
+      setChatHistory(
+        chatHistory.filter((chat: any) => chat.id !== chatToDelete)
+      );
       toast({
         title: "Chat Deleted",
         description: "The chat has been permanently removed.",
@@ -116,13 +139,13 @@ export default function ChatHistory() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "ai":
+      case "AI":
         return <Bot className="h-5 w-5 text-purple-500" />;
-      case "documents":
+      case "DOCUMENT":
         return <FileText className="h-5 w-5 text-blue-500" />;
-      case "images":
+      case "IMAGE":
         return <Image className="h-5 w-5 text-emerald-500" />;
-      case "videos":
+      case "VIDEO":
         return <Video className="h-5 w-5 text-orange-500" />;
       default:
         return <MessageSquare className="h-5 w-5 text-primary" />;
@@ -131,13 +154,13 @@ export default function ChatHistory() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "ai":
+      case "AI":
         return "bg-purple-500/10 text-purple-500";
-      case "documents":
+      case "DOCUMENT":
         return "bg-blue-500/10 text-blue-500";
-      case "images":
+      case "IMAGE":
         return "bg-emerald-500/10 text-emerald-500";
-      case "videos":
+      case "VIDEO":
         return "bg-orange-500/10 text-orange-500";
       default:
         return "bg-primary/10 text-primary";
@@ -173,11 +196,19 @@ export default function ChatHistory() {
             className="w-full"
           >
             <TabsList className="grid grid-cols-5 w-full max-w-2xl">
-              <TabsTrigger value="all">All Chats</TabsTrigger>
-              <TabsTrigger value="ai">AI Assistant</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="images">Images</TabsTrigger>
-              <TabsTrigger value="videos">Videos</TabsTrigger>
+              <TabsTrigger value="all">
+                <p>
+                  All <span className="hidden md:inline">Chats</span>
+                </p>
+              </TabsTrigger>
+              <TabsTrigger value="AI">
+                AI <span className="hidden md:inline">Assistant</span>
+              </TabsTrigger>
+              <TabsTrigger value="DOCUMENT">
+                Doc<span className="hidden md:inline">uments</span>
+              </TabsTrigger>
+              <TabsTrigger value="IMAGE">Images</TabsTrigger>
+              <TabsTrigger value="VIDEO">Videos</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -195,12 +226,12 @@ export default function ChatHistory() {
             <p className="text-muted-foreground max-w-md">
               {activeTab === "all"
                 ? "You haven't had any conversations yet. Start chatting to see your history here."
-                : `You don't have any ${activeTab} chat history yet.`}
+                : `You don't have any ${activeTab.toLocaleLowerCase()} chat history yet.`}
             </p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredHistory.map((chat) => (
+            {filteredHistory.map((chat: any) => (
               <motion.div
                 key={chat.id}
                 initial={{ opacity: 0, y: 100 }}
@@ -234,17 +265,17 @@ export default function ChatHistory() {
                       {chat.title}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                      {chat.preview}
+                      {chat.messages[0]?.content || "No messages exists"}
                     </p>
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex items-center gap-2">
                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">
-                          {chat.messages} messages
+                          {Number(chat?._count.messages)} messages
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(chat.date).toLocaleDateString()}
+                        {/* {new Date(chat.date).toLocaleDateString()} */}
                       </span>
                     </div>
                   </div>
@@ -253,7 +284,7 @@ export default function ChatHistory() {
                       variant="ghost"
                       className="w-full justify-between"
                       size="sm"
-                      onClick={() => redirect(`/chat/${chat.type}`)}
+                      onClick={() => redirectTOChat(chat.type, chat.id)}
                     >
                       Continue Chat
                       <ExternalLink className="h-4 w-4 ml-2" />

@@ -1,6 +1,8 @@
 "use client";
 
+import Alert from "@/components/alert-dialog";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { DialogDemo } from "@/components/title-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -32,6 +34,11 @@ export default function AIChat() {
   const [isSaved, setIsSaved] = useState(false);
   const [chatId, setchatId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [openAlertDialog, setOpenAlertDialog] = useState(false);
+  const [isTitleModelOpen, setIsTitleModelOpen] = useState(false);
+  const [title, setTitle] = useState(
+    `Untitled-${new Date().toLocaleDateString()}-${new Date().toLocaleTimeString()}`
+  );
 
   useEffect(() => {
     setisMounted(true);
@@ -40,8 +47,7 @@ export default function AIChat() {
   const saveToDb = async () => {
     try {
       setSaving(true);
-      const data = await save({ messages });
-      console.log(data);
+      const data = await save({ messages, title, type: "AI" });
       if (data) {
         sessionStorage.setItem("aiSession", JSON.stringify({ chatId: data }));
         setIsSaved(true);
@@ -125,6 +131,15 @@ export default function AIChat() {
     }
   }, []);
 
+  const addNewChat = () => {
+    setAllData(null), setIsSaved(false);
+    setMessages([]);
+    setchatId("");
+    setShowSaveButton(false);
+    // sessionStorage.setItem("aiSession", JSON.stringify({ update: true }));
+    sessionStorage.removeItem("aiSession");
+  };
+
   if (!isMounted) {
     return null;
   }
@@ -154,7 +169,12 @@ export default function AIChat() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Button className="bg-purple-500/20 md:right-10  right-2 top-8">
+                  <Button
+                    onClick={() => {
+                      !isSaved ? setOpenAlertDialog(true) : addNewChat();
+                    }}
+                    className="bg-purple-500/20 md:right-10  right-2 top-8"
+                  >
                     <PlusIcon />
                     <p className="hidden md:flex">New Chat</p>
                   </Button>
@@ -182,7 +202,7 @@ export default function AIChat() {
               </div>
             </div>
             <Button
-              onClick={saveToDb}
+              onClick={() => setIsTitleModelOpen(true)}
               className="bg-slate-800 hover:bg-slate-800/50"
             >
               {saving ? (
@@ -214,6 +234,22 @@ export default function AIChat() {
             getResponse={getNewChat}
           />
         </Card>
+        <div>
+          <Alert
+            addNewChat={addNewChat}
+            openAlertDialog={openAlertDialog}
+            setOpenAlertDialog={setOpenAlertDialog}
+          />
+        </div>
+        <div>
+          <DialogDemo
+            isTitleModelOpen={isTitleModelOpen}
+            setIsTitleModelOpen={setIsTitleModelOpen}
+            setTitle={setTitle}
+            title={title}
+            action={saveToDb}
+          />
+        </div>
       </div>
     </motion.div>
   );

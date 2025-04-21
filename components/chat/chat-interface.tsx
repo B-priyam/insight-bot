@@ -109,9 +109,9 @@ export function ChatInterface({ messages, setMessages, getResponse }: Props) {
                   )}
                 </div>
               </Card>
+              <div ref={chatEndRef} />
             </div>
           ))}
-          <div ref={chatEndRef} />
         </div>
       </ScrollArea>
       <div className="pt-4">

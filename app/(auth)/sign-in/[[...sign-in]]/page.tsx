@@ -20,7 +20,7 @@ const Page = () => {
 
   return (
     <div className="h-screen w-full flex items-center justify-center ">
-      <div className="h-1/2 w-[90%] md:w-1/2 bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-600">
+      <div className="py-5 gap-10 justify-between flex flex-col w-1/2 md:w-1/3 bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-600">
         <SignIn.Root>
           <SignIn.Step name="start" className="">
             <div className="h-full w-full p-5">

@@ -18,8 +18,6 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-// import { processPDF } from "./uploadToPinecone";
-import { main } from "./open-ai-test";
 import { generateEmbeddingsInPineconeVectorStore } from "@/lib/test/langchain";
 import { getResponse } from "@/lib/test/getResponse";
 import { Input } from "./ui/input";
@@ -68,25 +66,25 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const parsedSessionData = JSON.parse(sessionData);
       if (parsedSessionData?.chatId) {
         const data = await getData(parsedSessionData?.chatId);
-        console.log(data);
         if (data) {
-          setuploadedFiles(data?.documents);
+          setuploadedFiles(data.documents);
         }
       }
       if (parsedSessionData.files && parsedSessionData.update !== false) {
-        console.log("updtaing files");
         setuploadedFiles(parsedSessionData.files);
+      } else if (!parsedSessionData.files && !parsedSessionData.chatId) {
+        setuploadedFiles([]);
       }
     }
   };
 
   useEffect(() => {
-    console.log("updtae hit");
     setFiles([]);
     getUploadedFiles();
   }, [
     sessionStorage.getItem("imageSession"),
     sessionStorage.getItem("documentSession"),
+    sessionStorage.getItem("videoSession"),
   ]);
 
   const onDrop = useCallback(
@@ -207,6 +205,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
             </motion.p>
             <p className="text-sm text-muted-foreground mt-1">
               or click to select files
+              <p>
+                Max file Size{" "}
+                {`${
+                  type === "video" ? "40MB" : type === "image" ? "10MB" : "20MB"
+                }`}
+              </p>
             </p>
           </div>
         </motion.div>
@@ -318,7 +322,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       )}
 
       <AnimatePresence>
-        {files.length > 0 && (
+        {(files.length > 0 || processing) && (
           <>
             <p className="ml-2 -mb-5">
               {uploadedFiles.length > 0 && "New Files"}
@@ -488,7 +492,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center gap-5">
                         <Progress value={progress} />
-                        {`${currentProcessingFile}/${files.length}`}
                       </div>
                       <p className="text-sm text-muted-foreground text-center">
                         Processing documents: {Math.round(progress!)}%

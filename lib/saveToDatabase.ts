@@ -5,20 +5,18 @@ import { client } from "./prisma";
 import { v4 as uuid } from "uuid";
 
 export const save = async (data: any) => {
-  //   console.log(data);
   const files = data.files || [];
   const messages = data.messages || [];
   const namespaceId = data.namespaceId || "";
 
   const user = await currentUser();
 
-  let chat;
+  let chat: any;
 
   if (data.chatId) {
     chat = await client.chat.findUnique({
       where: {
         id: data.chatId,
-        // userid: user?.id,
       },
     });
   }
@@ -28,6 +26,8 @@ export const save = async (data: any) => {
       data: {
         userid: user?.id!,
         namespaceId: namespaceId,
+        title: data.title,
+        type: data.type,
       },
     });
   }

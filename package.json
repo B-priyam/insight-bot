@@ -10,9 +10,8 @@
   },
   "dependencies": {
     "@clerk/elements": "^0.22.20",
-    "@clerk/nextjs": "^6.11.1",
-    "@ffmpeg/core": "^0.12.10",
-    "@ffmpeg/ffmpeg": "^0.9.7",
+    "@clerk/nextjs": "^6.12.4",
+    "@ffmpeg/ffmpeg": "^0.11.6",
     "@google/generative-ai": "^0.21.0",
     "@hookform/resolvers": "^3.9.0",
     "@langchain/cohere": "^0.3.2",
