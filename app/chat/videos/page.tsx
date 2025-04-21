@@ -237,7 +237,7 @@ export default function VideosChat() {
       console.log(data);
       setAllData(data);
       setMessages(
-        data?.messages?.map((message) => {
+        data?.messages?.map((message: any) => {
           return {
             content: message.content,
             role: message.role === "system" ? "system" : "user",

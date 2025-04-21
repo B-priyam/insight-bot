@@ -221,7 +221,7 @@ export default function ImagesChat() {
       console.log(data);
       setAllData(data);
       setmessages(
-        data?.messages?.map((message) => {
+        data?.messages?.map((message: any) => {
           return {
             content: message.content,
             role: message.role === "system" ? "system" : "user",

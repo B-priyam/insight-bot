@@ -232,7 +232,7 @@ function DocumentsChat() {
     if (data) {
       setAllData(data);
       setMessages(
-        data?.messages?.map((message) => {
+        data?.messages?.map((message: any) => {
           return {
             content: message.content,
             role: message.role === "system" ? "system" : "user",
