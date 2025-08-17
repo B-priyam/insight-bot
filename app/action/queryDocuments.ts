@@ -18,15 +18,9 @@ const pinecone = new Pinecone({
   apiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY!,
 });
 
-// /**
-//  * Retrieves relevant documents and generates an AI response.
-//  * @param query The user query.
-//  * @param namespaceId The namespace used in Pinecone.
-//  * @param chatHistory The previous chat messages.
-//  * @param filename Optional filename filter.
-//  * @param limit Number of document snippets to retrieve (default: 5).
-//  * @returns AI-generated response with relevant sources.
-//  */
+/**
+ * Retrieves relevant documents and generates an AI response.
+ */
 export async function retrieveDocuments({
   query,
   namespaceId,
@@ -39,37 +33,31 @@ export async function retrieveDocuments({
   chatHistory: Message[];
   filename?: string | null;
   limit?: number;
-}) {
+}): Promise<Message> {
   try {
     if (!namespaceId) throw new Error("Namespace ID is required.");
 
     console.log(`🔹 Retrieving documents from namespace: ${namespaceId}`);
 
-    // Load Pinecone index
     const index = await pinecone.index(PINECONE_INDEX_NAME);
-    console.log("✅ Pinecone Index Loaded");
 
-    // Generate embeddings using Cohere
     const embeddings = new CohereEmbeddings({
       apiKey: process.env.COHERE_API_KEY!,
       model: "embed-english-v3.0",
     });
 
-    // Load vector store from Pinecone using retriever
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: index,
       namespace: namespaceId,
     });
 
-    console.log("✅ Vector Store Set");
+    console.log("✅ Vector Store Initialized");
 
-    // Use retriever to get relevant documents
     const retriever = vectorStore.asRetriever({ k: limit });
     let retrievedDocs = await retriever.invoke(query);
 
     console.log(`📄 Retrieved ${retrievedDocs.length} documents`);
 
-    // Apply filename filtering if specified
     if (filename) {
       retrievedDocs = retrievedDocs.filter(
         (doc) => doc.metadata.filename === filename
@@ -77,78 +65,71 @@ export async function retrieveDocuments({
       console.log(`📂 Filtered results for file: ${filename}`);
     }
 
-    if (!retrievedDocs || retrievedDocs.length === 0) {
-      const Response: Message = {
+    if (!retrievedDocs.length) {
+      return {
         role: "system",
         content: "I don't have enough information to answer your query.",
         timestamp: new Date(),
         source: null,
       };
-      return Response;
     }
 
-    // Extract relevant metadata for response
+    // Extract sources
     const relevantDocs = retrievedDocs.slice(0, 3);
-    const sources = relevantDocs.map(({ metadata, pageContent }) => ({
+    const sources = relevantDocs.map(({ metadata }) => ({
       filename: metadata.filename || "Unknown File",
       page: metadata.page || 1,
-      contentSnippet: metadata.pageContent.slice(0, 250) + "...",
+      contentSnippet:
+        (metadata.pageContent || metadata.text || "").slice(0, 250) + "...",
     }));
 
-    // Prepare the context for AI response
     const contextText = retrievedDocs
       .map(
         (doc) =>
-          `${doc.metadata.filename} (Page ${doc.metadata.page}):\n${doc.metadata.pageContent}`
+          `${doc.metadata.filename} (Page ${doc.metadata.page}):\n${
+            doc.metadata.pageContent || doc.metadata.text
+          }`
       )
       .join("\n\n");
 
     const formattedChatHistory = chatHistory
-      .map(
-        (message) =>
-          `${message.role === "user" ? "User" : "AI"}: ${message.content}`
-      )
+      .map((msg) => `${msg.role === "user" ? "User" : "AI"}: ${msg.content}`)
       .join("\n");
 
     const systemPrompt = `You are an AI assistant that strictly answers based on retrieved documents.
-    If an answer is not found in the provided data, respond with: "I don't have enough information." 
-    Use the retrieved context to answer accurately.`;
+If an answer is not found in the provided data, respond with: "I don't have enough information." 
+Use the retrieved context to answer accurately.`;
 
     const messages = [
       new AIMessage(systemPrompt),
-      new HumanMessage(`Previous Chat History:\n${formattedChatHistory}\n\n`),
+      new HumanMessage(`Previous Chat History:\n${formattedChatHistory}`),
       new HumanMessage(
         `Retrieved Context:\n${contextText}\n\nUser Query: ${query}`
       ),
     ];
 
-    // Generate response using Gemini AI
     const llm = new ChatGoogleGenerativeAI({
       apiKey: process.env.GEMINI_API_KEY!,
       model: "gemini-2.0-flash",
     });
 
     const response = await llm.invoke(messages);
-    console.log(`🔹 AI Response: ${response.content}`);
+    console.log(`🤖 AI Response: ${response.content}`);
 
-    console.log("🔴 sources", sources);
-
-    const Response: Message = {
+    return {
       role: "system",
       content: response.content.toString(),
       timestamp: new Date(),
       source: sources,
     };
-
-    return Response;
   } catch (error) {
     console.error("❌ Error retrieving/generating response:", error);
-    const Response: Message = {
+
+    return {
       role: "system",
       content: "An error occurred while processing your request.",
       timestamp: new Date(),
       source: null,
     };
-    return Response;
   }
 }

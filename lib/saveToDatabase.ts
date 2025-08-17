@@ -32,32 +32,46 @@ export const save = async (data: any) => {
     });
   }
 
-  const documentsData = files.map((file: any) => ({
-    chatId: chat.id,
-    original_name: file.original_name,
-    url: file.url,
-  }));
+  // Save documents
+  if (files.length > 0) {
+    const documentsData = files.map((file: any) => ({
+      chatId: chat.id,
+      original_name: file.original_name,
+      url: file.url,
+    }));
 
-  const documents = client.document.createMany({
-    data: documentsData,
-    skipDuplicates: true, // Avoid inserting
-  });
+    await client.document.createMany({
+      data: documentsData,
+      skipDuplicates: true,
+    });
+  }
 
-  const messageData = messages.map((message: any) => ({
-    chatId: chat.id,
-    role: message.role,
-    content: message.content,
-    timeStamp: message?.timestamp,
-    // source: message?.source?.map((source: any) => ({
-    //   pageNo: source.pageNo,
-    // })),
-  }));
+  // Save messages and their sources
+  for (const message of messages) {
+    const savedMessage = await client.message.create({
+      data: {
+        chatId: chat.id,
+        role: message.role,
+        content: message.content,
+        timeStamp: message.timestamp,
+      },
+    });
 
-  const message = client.message.createMany({
-    data: messageData,
-  });
+    if (message.role === "system" && Array.isArray(message.source)) {
+      const sourceData = message.source.map((src: any) => ({
+        pageNo: src.page || "1",
+        filename: src.filename || "Unknown File",
+        snippet: src.contentSnippet || "",
+        messageId: savedMessage.id,
+      }));
 
-  await client.$transaction([message, documents]);
+      if (sourceData.length > 0) {
+        await client.source.createMany({
+          data: sourceData,
+        });
+      }
+    }
+  }
 
   return chat.id;
 };
@@ -68,7 +82,7 @@ export const saveMessages = async (
   chatId: string
 ) => {
   try {
-    const usersMessage = client.message.create({
+    const usersMessage = await client.message.create({
       data: {
         content: userMessage?.content,
         role: userMessage?.role,
@@ -77,7 +91,7 @@ export const saveMessages = async (
       },
     });
 
-    const systemsMessage = client.message.create({
+    const systemsMessage = await client.message.create({
       data: {
         content: systemMessage?.content,
         role: systemMessage?.role,
@@ -86,7 +100,22 @@ export const saveMessages = async (
       },
     });
 
-    await client.$transaction([usersMessage, systemsMessage]);
+    if (Array.isArray(systemMessage.source)) {
+      const sourceData = systemMessage.source.map((src: any) => ({
+        pageNo: src.page || "1",
+        filename: src.filename || "Unknown File",
+        snippet: src.contentSnippet || "",
+        messageId: systemsMessage.id,
+      }));
+
+      if (sourceData.length > 0) {
+        await client.source.createMany({
+          data: sourceData,
+        });
+      }
+    }
+
+    return { status: 200 };
   } catch (error: any) {
     throw new Error(error.message);
   }

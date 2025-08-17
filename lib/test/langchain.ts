@@ -62,8 +62,6 @@ export async function generateEmbeddingsInPineconeVectorStore(docId: string) {
   const indexName = "insight";
   let pineconeVectorStore;
 
-  console.log("🔴", docId);
-
   const pinecone = new Pinecone({
     apiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY!,
   });

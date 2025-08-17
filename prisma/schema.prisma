@@ -18,20 +18,10 @@ model User {
   createdAt DateTime @default(now())
 }
 
-model Document {
-  id            String    @id @default(uuid())
-  chatId        String    @db.Uuid
-  original_name String
-  url           String
-  fileType      FileType?
-  uploadedAt    DateTime  @default(now())
-  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-}
-
 model Chat {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  User        User       @relation(fields: [userid], references: [clerkid])
   userid      String
+  User        User       @relation(fields: [userid], references: [clerkid])
   messages    Message[]
   documents   Document[]
   namespaceId String?
@@ -40,20 +30,33 @@ model Chat {
   createdAt   DateTime   @default(now())
 }
 
+model Document {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId        String    @db.Uuid
+  original_name String
+  url           String
+  fileType      FileType?
+  uploadedAt    DateTime  @default(now())
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
 model Message {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chat      Chat      @relation(fields: [chatId], references: [id])
-  chatId    String    @db.Uuid
+  id        String   @id @default(cuid())
+  chatId    String
   role      String
   content   String
-  timeStamp DateTime? @default(now())
-  source    Source[]
+  timeStamp DateTime @default(now())
+
+  Chat   Chat     @relation(fields: [chatId], references: [id])
+  source Source[] // Link to Source model
 }
 
 model Source {
   id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   pageNo    String
-  messageId String  @db.Uuid
+  filename  String
+  snippet   String
+  messageId String
   message   Message @relation(fields: [messageId], references: [id])
 }
 

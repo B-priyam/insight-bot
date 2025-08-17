@@ -26,7 +26,6 @@ const upload = multer({ storage });
 
 // Function to get Cloudinary upload options
 const getUploadOptions = (fileType: string): cloudinary.UploadApiOptions => {
-  console.log("🔴 ", fileType);
   if (fileType.startsWith("image")) {
     return {
       folder: "uploads",

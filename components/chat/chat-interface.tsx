@@ -19,9 +19,15 @@ interface Props {
   messages: Message[];
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   getResponse: () => Promise<void>;
+  sources?: any;
 }
 
-export function ChatInterface({ messages, setMessages, getResponse }: Props) {
+export function ChatInterface({
+  messages,
+  setMessages,
+  getResponse,
+  sources,
+}: Props) {
   const [input, setInput] = useState("");
   const latestMessageRef = useRef<Message | null>(null);
   const chatEndRef = useRef<any | null>(null);
@@ -113,7 +119,20 @@ export function ChatInterface({ messages, setMessages, getResponse }: Props) {
             </div>
           ))}
         </div>
+        <div className="flex flex-row py-2 gap-2 px-2">
+          {sources?.map((source: any, index: number) => (
+            <div
+              className="bg-slate-800 px-2 py-1 rounded-lg flex flex-row  items-center justify-center self-center w-fit"
+              key={index}
+            >
+              <p className="text-sm">
+                Filename :- {source.filename} -- Page No. {source.page}
+              </p>
+            </div>
+          ))}
+        </div>
       </ScrollArea>
+
       <div className="pt-4">
         <Card className="p-2 m-1 shadow-2xl glass-effect">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">

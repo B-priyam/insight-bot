@@ -5,8 +5,6 @@ import { PineconeStore } from "@langchain/pinecone";
 import { Pinecone } from "@pinecone-database/pinecone";
 
 export const getResponse = async () => {
-  console.log("🔴", process.env.COHERE_API_KEY);
-  console.log("started successfully");
   const cohere = new CohereEmbeddings({
     apiKey: process.env.COHERE_API_KEY,
     model: "embed-english-v3.0",

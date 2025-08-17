@@ -22,6 +22,17 @@ export const getData = async (chatId: string) => {
           content: true,
           role: true,
           timeStamp: true,
+          id: true,
+          source: {
+            select: {
+              pageNo: true,
+              filename: true,
+              snippet: true,
+            },
+          },
+        },
+        orderBy: {
+          timeStamp: "asc", // optional: ensures messages are sorted chronologically
         },
       },
       namespaceId: true,

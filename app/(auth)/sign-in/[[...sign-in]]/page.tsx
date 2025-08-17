@@ -19,21 +19,26 @@ const Page = () => {
   }
 
   return (
-    <div className="h-screen w-full flex items-center justify-center ">
+    <div className="h-screen w-full flex items-center justify-center bg-slate-900">
       <div className="py-5 gap-10 justify-between flex flex-col w-1/2 md:w-1/3 bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-600">
         <SignIn.Root>
           <SignIn.Step name="start" className="">
             <div className="h-full w-full p-5">
-              <h3 className="text-center text-2xl">Sign in to your account</h3>
+              <h3 className="text-center text-2xl text-slate-500 font-serif tracking-wide">
+                Sign in to your account
+              </h3>
               <Clerk.GlobalError className="block text-sm text-red-400" />
               <div className="my-4 flex gap-2 flex-col">
                 <Clerk.Field
                   name="identifier"
-                  className="w-full bg-gray-600 rounded-md px-4 py-1 my-2 group "
+                  className="w-full bg-gray-600 rounded-md px-4 py-1 my-2 group"
                 >
                   <Clerk.Input
-                    className="bg-transparent ring-0 border-none w-full focus-visible:ring-offset-0 focus-visible:ring-0 transition-all duration-100 text-sm py-1.5 focus:ring-0 focus:outline-none "
+                    className="bg-transparent ring-0 border-none w-full focus-visible:ring-offset-0 focus-visible:ring-0 transition-all duration-100 text-sm py-1.5 focus:ring-0 focus:outline-none selection:bg-transparent selection:text-inherit autofill:bg-transparent autofill:text-inherit"
                     placeholder="Enter your Email"
+                    style={{
+                      backgroundColor: "transparent",
+                    }}
                   />
                 </Clerk.Field>
                 <Clerk.Field
@@ -57,7 +62,7 @@ const Page = () => {
                     height={20}
                     alt="google-icon"
                   />
-                  <p>Google</p>
+                  <p className="dark:text-slate-900 text-slate-300">Google</p>
                 </Clerk.Connection>
                 <Clerk.Connection
                   name="github"
@@ -69,7 +74,7 @@ const Page = () => {
                     height={20}
                     alt="github-icon"
                   />
-                  <p>Github</p>
+                  <p className="dark:text-slate-900 text-slate-300">Github</p>
                 </Clerk.Connection>
               </div>
               <SignIn.Action

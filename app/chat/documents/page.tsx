@@ -47,6 +47,7 @@ function DocumentsChat() {
   const [title, setTitle] = useState(
     `Untitled-${new Date().toLocaleDateString()}-${new Date().toLocaleTimeString()}`
   );
+  const [sources, setSources] = useState<any>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -64,7 +65,6 @@ function DocumentsChat() {
         );
         data = await save({ ...sessionData, title, type: "DOCUMENT" });
       }
-      console.log(data);
       if (data) {
         sessionStorage.setItem(
           "documentSession",
@@ -75,14 +75,15 @@ function DocumentsChat() {
         setshowSaveButton(false);
         toast({
           title: "Session saved successfully",
-          description: "All documents, messages have been successfully saved.",
+          description:
+            "All documents and messages have been successfully saved.",
         });
       }
     } catch (error) {
       console.log(error);
       toast({
         title: "Error in saving file",
-        description: "kindly try again .",
+        description: "Kindly try again.",
       });
     } finally {
       setSaving(false);
@@ -91,10 +92,8 @@ function DocumentsChat() {
 
   const saveSession = async () => {
     try {
-      console.log("satrted");
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
-
       const res = await fetch("/api/cloudinary", {
         method: "POST",
         body: formData,
@@ -118,15 +117,14 @@ function DocumentsChat() {
           }
         } else {
           const previousFiles = allData?.files || processedFiles;
-
-          if (previousFiles && previousFiles.length > 0) {
+          if (previousFiles?.length > 0) {
             data = [...data, ...previousFiles];
           }
-
           const sessionData = {
             files: data,
             messages: messages,
             namespaceId: namespaceId || allData?.namespaceId,
+            sources,
             update: true,
           };
           sessionStorage.setItem(
@@ -169,7 +167,6 @@ function DocumentsChat() {
           allData ? allData?.namespaceId : namespaceId
         );
       }
-
       const res = await fetch("/api/document-upload", {
         method: "POST",
         body: formData,
@@ -179,14 +176,11 @@ function DocumentsChat() {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       const data = await res.json();
-      console.log(data);
-
       if (data.namespaceId) {
-        for (let i = 60; i < 80; i++) {
+        for (let i = 60; i < 100; i++) {
           setProgress(i);
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        setNamespaceId(data?.namespaceId);
         setNamespaceId(data?.namespaceId);
         if (!namespaceId && !allData?.namespaceId) {
           sessionStorage.setItem(
@@ -197,25 +191,14 @@ function DocumentsChat() {
             })
           );
         }
-        for (let i = 80; i <= 100; i++) {
-          setProgress(i);
-          await new Promise((resolve) => setInterval(resolve, 50));
-        }
         toast({
           title: "Processing Complete",
-          description: "All documents have been successfully processed .",
+          description: "All documents have been successfully processed.",
         });
         setProcessing(false);
-        if (!isSaved) {
-          setshowSaveButton(true);
-        }
+        if (!isSaved) setshowSaveButton(true);
       } else {
-        setProcessing(false);
-        toast({
-          title: "Processing Failed",
-          description: "An error occurred while processing the documents.",
-          variant: "destructive",
-        });
+        throw new Error("namespaceId not returned");
       }
     } catch (error) {
       toast({
@@ -231,93 +214,94 @@ function DocumentsChat() {
     const data = await getData(chatId);
     if (data) {
       setAllData(data);
-      setMessages(
-        data?.messages?.map((message: any) => {
-          return {
-            content: message.content,
-            role: message.role === "system" ? "system" : "user",
-            timestamp: message?.timeStamp!,
-          };
-        })
-      );
+      const formattedMessages = data?.messages?.map((message: any) => ({
+        content: message.content,
+        role: message.role === "system" ? "system" : "user",
+        timestamp: message?.timeStamp!,
+        source: message?.source || null,
+      }));
+      setMessages(formattedMessages);
+      const lastMsg = formattedMessages[formattedMessages.length - 1];
+      if (lastMsg?.source) {
+        setSources(lastMsg.source);
+      }
     }
   };
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("documentSession");
     if (sessionData) {
-      const parsedSessionData = JSON.parse(sessionData);
-      if (parsedSessionData?.chatId) {
-        setChatId(parsedSessionData.chatId);
+      const parsed = JSON.parse(sessionData);
+      if (parsed?.chatId) {
+        setChatId(parsed.chatId);
         setIsSaved(true);
-        getDocuments(parsedSessionData.chatId);
+        getDocuments(parsed.chatId);
       }
-      if (parsedSessionData.files) {
+      if (parsed.files) {
         setshowSaveButton(true);
-        setAllData(parsedSessionData);
-        setMessages(parsedSessionData.messages);
+        setAllData(parsed);
+        setMessages(parsed.messages || []);
+        setSources(parsed.sources || null);
         sessionStorage.setItem(
           "documentSession",
-          JSON.stringify({ ...parsedSessionData, update: true })
+          JSON.stringify({ ...parsed, update: true })
         );
       }
     }
   }, []);
 
   const addNewChat = () => {
-    setAllData(null), setFiles([]), setIsSaved(false);
+    setAllData(null);
+    setFiles([]);
+    setIsSaved(false);
     setMessages([]);
+    setSources(null);
     setNamespaceId("");
     setChatId("");
     setshowSaveButton(false);
     sessionStorage.setItem("documentSession", JSON.stringify({ update: true }));
-    // sessionStorage.removeItem("imageSession");
   };
 
   const getResponse = async () => {
+    const userMessage = messages[messages.length - 1];
     const data = await retrieveDocuments({
       namespaceId: allData?.namespaceId || namespaceId,
       chatHistory: messages,
-      query: messages[messages.length - 1].content,
+      query: userMessage.content,
     });
     if (data) {
-      setMessages((prev) => [...prev, data]);
+      setSources(data.source || null);
+      const assistantMsg: Message = {
+        role: "system",
+        content: data.content,
+        timestamp: new Date(),
+        source: data.source || null,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+
       try {
         if (isSaved) {
-          await saveMessages(messages[messages.length - 1], data, chatId);
+          await saveMessages(userMessage, assistantMsg, chatId);
         } else {
-          const sessionData = sessionStorage.getItem("documentSession");
-          const parsedSessionData = sessionData ? JSON.parse(sessionData) : {};
-          const existingFiles = Array.isArray(parsedSessionData.files)
-            ? parsedSessionData.files
-            : [];
-          const newFiles = Array.isArray(processedFiles) ? processedFiles : [];
-          const allFiles = [...existingFiles, ...newFiles];
-
-          const uniqueFiles = Array.from(
-            new Map(allFiles.map((file) => [file.original_name, file])).values()
-          );
-
+          const session = sessionStorage.getItem("documentSession");
+          const parsed = session ? JSON.parse(session) : {};
           sessionStorage.setItem(
             "documentSession",
             JSON.stringify({
-              files: uniqueFiles,
-              namespaceId: allData?.namespaceId || namespaceId,
-              messages: [...messages, data],
+              ...parsed,
+              messages: [...messages, assistantMsg],
+              sources: data.source || null,
               update: false,
             })
           );
         }
       } catch (error) {
-        console.log("error", error);
-        setMessages((prev) => prev.filter((msg) => msg !== data));
+        setMessages((prev) => prev.filter((msg) => msg !== assistantMsg));
       }
     }
   };
 
-  if (!isMounted) {
-    return null;
-  }
+  if (!isMounted) return null;
 
   return (
     <motion.div
@@ -325,6 +309,7 @@ function DocumentsChat() {
       animate={{ opacity: 1 }}
       className="flex h-full flex-col"
     >
+      {/* Top Section */}
       <div className="border-b p-8 bg-gradient-to-r from-blue-500/10 via-primary/10 to-secondary">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-row justify-between mb-6">
@@ -345,10 +330,10 @@ function DocumentsChat() {
               <Tooltip>
                 <TooltipTrigger>
                   <Button
-                    onClick={() => {
-                      !isSaved ? setOpenAlertDialog(true) : addNewChat();
-                    }}
-                    className="bg-blue-500/10 md:right-10  right-2 top-8"
+                    onClick={() =>
+                      !isSaved ? setOpenAlertDialog(true) : addNewChat()
+                    }
+                    className="bg-blue-500/10"
                   >
                     <PlusIcon />
                     <p className="hidden md:flex">New Chat</p>
@@ -360,36 +345,34 @@ function DocumentsChat() {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Card
-            className={`p-2 bg-slate-900 justify-between mb-2 ${
-              showSaveButton ? "flex" : "hidden"
-            }`}
-            style={{ display: showSaveButton ? "flex" : "none" }}
-          >
-            <div className="flex flex-row gap-2">
-              <Save className="mt-1 hidden md:flex" />
-              <div className="flex flex-col">
-                <h3 className="text-slate-200">Save This file ?</h3>
-                <p className="text-xs text-slate-500">
-                  Save this file to avoid losing your chats. Avoid saving files
-                  that may not be required in future.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => setIsTitleModelOpen(true)}
-              className="bg-slate-800 hover:bg-slate-800/50"
-            >
-              {saving ? (
-                <div className="flex flex-row gap-2">
-                  <Loader2 className="animate-spin" />
-                  {"saving"}
+
+          {/* Save Card */}
+          {showSaveButton && (
+            <Card className="p-2 bg-slate-900 flex justify-between mb-2">
+              <div className="flex flex-row gap-2">
+                <Save className="mt-1 hidden md:flex" />
+                <div className="flex flex-col">
+                  <h3 className="text-slate-200">Save This file ?</h3>
+                  <p className="text-xs text-slate-500">
+                    Save this file to avoid losing your chats.
+                  </p>
                 </div>
-              ) : (
-                "Save file"
-              )}
-            </Button>
-          </Card>
+              </div>
+              <Button
+                onClick={() => setIsTitleModelOpen(true)}
+                className="bg-slate-800 hover:bg-slate-800/50"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="animate-spin" /> saving
+                  </>
+                ) : (
+                  "Save file"
+                )}
+              </Button>
+            </Card>
+          )}
+
           <Card className="p-6 glass-effect">
             <FileUpload
               type="document"
@@ -409,6 +392,7 @@ function DocumentsChat() {
         </div>
       </div>
 
+      {/* Chat Assistant */}
       <div className="flex-1 p-8 max-w-6xl mx-auto w-full">
         <Card className="glass-effect h-full overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b">
@@ -435,25 +419,22 @@ function DocumentsChat() {
               messages={messages}
               setMessages={setMessages}
               getResponse={getResponse}
+              sources={sources}
             />
           </div>
         </Card>
-        <div>
-          <Alert
-            addNewChat={addNewChat}
-            openAlertDialog={openAlertDialog}
-            setOpenAlertDialog={setOpenAlertDialog}
-          />
-        </div>
-        <div>
-          <DialogDemo
-            isTitleModelOpen={isTitleModelOpen}
-            setIsTitleModelOpen={setIsTitleModelOpen}
-            setTitle={setTitle}
-            title={title}
-            action={saveToDb}
-          />
-        </div>
+        <Alert
+          addNewChat={addNewChat}
+          openAlertDialog={openAlertDialog}
+          setOpenAlertDialog={setOpenAlertDialog}
+        />
+        <DialogDemo
+          isTitleModelOpen={isTitleModelOpen}
+          setIsTitleModelOpen={setIsTitleModelOpen}
+          setTitle={setTitle}
+          title={title}
+          action={saveToDb}
+        />
       </div>
     </motion.div>
   );

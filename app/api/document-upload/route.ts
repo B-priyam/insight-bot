@@ -74,8 +74,6 @@ async function processTxt(filePath: string, filename: string) {
 // **Named Export for POST Requests**
 export async function POST(req: NextRequest) {
   try {
-    console.log("🔴 Upload started...");
-
     // Extract FormData from request
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];

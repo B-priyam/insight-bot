@@ -14,7 +14,6 @@ interface Message {
 
 export const getResponse = async (messages: Message[]) => {
   try {
-    console.log("🔴 ---------- 🔴");
     const response = await groq.chat.completions.create({
       messages: [
         {
