@@ -220,7 +220,7 @@ function DocumentsChat() {
         timestamp: message?.timeStamp!,
         source: message?.source || null,
       }));
-      setMessages(formattedMessages);
+      setMessages(formattedMessages as Message[]);
       const lastMsg = formattedMessages[formattedMessages.length - 1];
       if (lastMsg?.source) {
         setSources(lastMsg.source);
